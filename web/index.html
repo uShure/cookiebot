@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CookieBot — Cookie Chain in Telegram</title>
+    <meta name="description" content="Send, tip and swap on Cookie Chain with Nightly, and get live wallet alerts in Telegram." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍪</text></svg>" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">🍪 <b>CookieBot</b> <span class="muted">on Cookie Chain</span></div>
+      <div class="wallet-box">
+        <span id="netBadge" class="badge">RPC…</span>
+        <button id="connectBtn" type="button">Connect Nightly</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card" id="walletCard">
+        <h2>Wallet</h2>
+        <p id="walletLine" class="muted">Not connected. Nightly is required — <a href="https://nightly.app/" target="_blank" rel="noopener">install it</a>.</p>
+        <div id="balances" class="balances"></div>
+        <a id="tgLink" class="button ghost" hidden target="_blank" rel="noopener">🔔 Get live alerts in Telegram</a>
+      </section>
+
+      <section class="card" id="sendCard">
+        <h2 id="sendTitle">Send COOK</h2>
+        <form id="sendForm">
+          <label>Recipient <input id="sendTo" placeholder="address or name.cook" autocomplete="off" required /></label>
+          <p id="sendResolved" class="hint"></p>
+          <label>Amount (COOK) <input id="sendAmount" type="number" min="0" step="any" placeholder="100" required /></label>
+          <label>Memo <input id="sendMemo" placeholder="optional" maxlength="120" /></label>
+          <button id="sendBtn" type="submit" disabled>Sign &amp; send</button>
+        </form>
+      </section>
+
+      <section class="card" id="swapCard">
+        <h2>Swap</h2>
+        <form id="swapForm">
+          <label>You pay (COOK) <input id="swapAmount" type="number" min="0" step="any" value="1000" required /></label>
+          <label>You get
+            <select id="swapToken"></select>
+          </label>
+          <p id="swapQuote" class="hint">Pick a token to get a quote from the Cookiebox aggregator.</p>
+          <button id="swapBtn" type="submit" disabled>Swap</button>
+        </form>
+      </section>
+
+      <section class="card wide">
+        <h2>Activity</h2>
+        <div id="status" class="status" role="status"></div>
+        <ul id="activity" class="activity"><li class="muted">Your transactions will appear here.</li></ul>
+      </section>
+
+      <section class="card wide">
+        <h2>Top tokens <span class="muted small">by liquidity · Cookiescan</span></h2>
+        <div class="table-wrap"><table id="market"><thead><tr><th>Token</th><th>Price</th><th>24h</th><th>Holders</th><th></th></tr></thead><tbody></tbody></table></div>
+      </section>
+    </main>
+
+    <footer class="muted small">
+      Non-custodial: every transaction is built in your browser and signed in Nightly. Need COOK? Bridge it from Solana at
+      <a href="https://hyperlane.cookiescan.io" target="_blank" rel="noopener">hyperlane.cookiescan.io</a>.
+      · <a href="https://github.com/uShure/cookiebot" target="_blank" rel="noopener">Source</a>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
