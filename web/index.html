@@ -178,6 +178,7 @@
             <p class="jar-usd mono" id="balUsd">Connect Nightly to open the jar.</p>
             <a id="tgLink" class="btn btn-gold" hidden target="_blank" rel="noopener">Get live alerts in Telegram</a>
             <a class="jar-install" id="installHint" href="https://nightly.app/" target="_blank" rel="noopener">No Nightly yet? Install it →</a>
+            <button type="button" class="jar-setup" data-open-net-help>Cookie Chain missing in Nightly? Add it →</button>
           </div>
           <ol class="timeline" id="activity">
             <li class="timeline-empty">Your transactions will show up here.</li>
@@ -233,6 +234,29 @@
         <a href="https://www.cookiechain.wtf" target="_blank" rel="noopener">Cookie Chain</a>
       </p>
     </footer>
+
+    <dialog class="net-help" id="netHelp" aria-labelledby="netHelpTitle">
+      <form method="dialog" class="net-help-close"><button aria-label="Close">✕</button></form>
+      <p class="net-help-kicker mono">One-time setup</p>
+      <h3 id="netHelpTitle">Add Cookie Chain to Nightly</h3>
+      <p class="net-help-lede">
+        Nightly only switches to networks it already knows. If it shows <b>Solana → Unknown</b> with a greyed-out Change button, add the network once:
+      </p>
+      <ol class="net-help-steps">
+        <li>In Nightly, open the network picker (the <b>Solana</b> label at the top) or <b>Settings → Networks</b>.</li>
+        <li>Choose <b>Add network</b> / <b>Custom SVM network</b> and paste these values:</li>
+      </ol>
+      <dl class="net-help-values">
+        <div><dt>Name</dt><dd class="mono">Cookie Chain</dd><button type="button" class="chip" data-copy-value="Cookie Chain">Copy</button></div>
+        <div><dt>RPC URL</dt><dd class="mono">https://rpc.cookiescan.io</dd><button type="button" class="chip" data-copy-value="https://rpc.cookiescan.io">Copy</button></div>
+        <div><dt>WebSocket</dt><dd class="mono">wss://rpc.cookiescan.io</dd><button type="button" class="chip" data-copy-value="wss://rpc.cookiescan.io">Copy</button></div>
+      </dl>
+      <ol class="net-help-steps" start="3">
+        <li>Save it, come back here and tap <b>Try again</b>. Approve the switch in Nightly.</li>
+      </ol>
+      <p class="net-help-note" id="netHelpNote" role="status"></p>
+      <button type="button" class="btn btn-ink btn-block" id="netHelpRetry">Try again</button>
+    </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module" src="/src/main.ts"></script>

@@ -59,25 +59,29 @@ export async function ensureCookieNetwork(): Promise<void> {
   try {
     await request();
   } catch (e) {
-    if (!/not connected/i.test(String((e as Error)?.message ?? e))) throw new Error(NETWORK_HELP);
+    if (!/not connected/i.test(String((e as Error)?.message ?? e))) throw new NetworkSetupError();
     await provider.connect();
     try {
       await request();
     } catch {
-      throw new Error(NETWORK_HELP);
+      throw new NetworkSetupError();
     }
   }
   // The popup resolves the request; the reported network can lag a moment behind it.
   for (let i = 0; i < 6 && readGenesis() !== GENESIS_HASH; i++) await new Promise((r) => setTimeout(r, 500));
   const reported = readGenesis();
   // Only a network Nightly positively reports as different is an error; an empty value is "unknown".
-  if (reported && reported !== GENESIS_HASH) throw new Error(NETWORK_HELP);
+  if (reported && reported !== GENESIS_HASH) throw new NetworkSetupError();
 }
 
-export const NETWORK_HELP =
-  "Nightly is still on Solana. Approve the network switch in the Nightly popup, or in Nightly open the network menu → Custom SVM network → RPC https://rpc.cookiescan.io, then try again.";
+/** Nightly isn't on Cookie Chain, usually because the network was never added to it. */
+export class NetworkSetupError extends Error {
+  constructor() {
+    super("Nightly is not on Cookie Chain yet. Add the network in Nightly, then try again.");
+  }
+}
 
-export async function connectNightly(): Promise<PublicKey> {
+export async function connectNightly(): Promise<{ key: PublicKey; networkReady: boolean }> {
   provider = await findNightly();
   if (!provider) throw new Error("Nightly not found. Install the Nightly extension from nightly.app and reload.");
   const res = await provider.connect();
@@ -85,8 +89,11 @@ export async function connectNightly(): Promise<PublicKey> {
   if (!key) throw new Error("Nightly did not return a public key.");
   // Nightly ignores a network change from a site it isn't connected to, so switch only after connect.
   // Declining here is not fatal: signing re-checks and asks again.
-  await ensureCookieNetwork().catch(() => undefined);
-  return new PublicKey(key.toString());
+  const networkReady = await ensureCookieNetwork().then(
+    () => true,
+    () => false,
+  );
+  return { key: new PublicKey(key.toString()), networkReady };
 }
 
 export function onAccountChange(cb: () => void): void {
@@ -114,7 +121,7 @@ export async function signSendConfirm(
     } catch (e) {
       // Nightly simulates on its own active network; a Solana balance error means it never switched.
       if (/insufficient lamports|InstructionError|simulation failed/i.test(String((e as Error)?.message ?? e))) {
-        throw new Error(NETWORK_HELP);
+        throw new NetworkSetupError();
       }
       throw e;
     }

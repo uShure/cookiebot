@@ -1697,6 +1697,141 @@ section[id] {
   }
 }
 
+/* Nightly network setup dialog. */
+.jar-setup {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.net-help {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 30px 28px 26px;
+  border: 3px solid var(--ink);
+  border-radius: 26px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 10px 12px 0 var(--ink);
+  overflow-y: auto;
+}
+
+.net-help[open] {
+  animation: rise 0.35s var(--ease-out) both;
+}
+
+.net-help::backdrop {
+  background: rgba(11, 31, 58, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.net-help-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+.net-help-close button {
+  width: 38px;
+  height: 38px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--cream);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.net-help-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.net-help h3 {
+  margin: 6px 0 10px;
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.net-help-lede {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+}
+
+.net-help-steps {
+  margin: 0 0 12px;
+  padding-left: 22px;
+  display: grid;
+  gap: 6px;
+}
+
+.net-help-values {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.net-help-values > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  border: 2px solid var(--ink-faint);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.net-help-values dt {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.net-help-values dd {
+  margin: 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.net-help-values .chip.copied {
+  border-style: solid;
+  border-color: var(--baked);
+  color: var(--baked);
+}
+
+.net-help-note {
+  min-height: 1.2em;
+  margin: 0 0 10px;
+  color: var(--burnt);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 480px) {
+  .net-help {
+    padding: 26px 18px 20px;
+  }
+
+  .net-help-values > div {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .net-help-values dt {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

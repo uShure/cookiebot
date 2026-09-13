@@ -11,7 +11,7 @@ import {
 } from "./api";
 import { startChatDemo } from "./demo";
 import { fmtAmount, fmtPrice, fmtUsd, h, short, timeAgo } from "./format";
-import { connectNightly, onAccountChange, signSendConfirm } from "./wallet";
+import { NetworkSetupError, connectNightly, ensureCookieNetwork, onAccountChange, signSendConfirm } from "./wallet";
 
 (globalThis as { Buffer?: typeof Buffer }).Buffer ??= Buffer;
 
@@ -274,7 +274,8 @@ async function connect() {
   if (owner) return;
   try {
     ui.connectBtn.classList.add("is-busy");
-    owner = await connectNightly();
+    const { key, networkReady } = await connectNightly();
+    owner = key;
     const addr = owner.toBase58();
     document.body.classList.add("is-connected");
     ui.walletLine.textContent = addr;
@@ -285,7 +286,8 @@ async function connect() {
     // link_ both links the wallet as the user's own (so /tip @user works) and watches it.
     ui.tgLink.href = `https://t.me/${BOT_USERNAME}?start=link_${addr}`;
     ui.tgLink.hidden = false;
-    toast("Nightly connected to Cookie Chain");
+    if (networkReady) toast("Nightly connected to Cookie Chain");
+    else openNetHelp();
     onAccountChange(() => location.reload());
     await Promise.all([refreshWallet(), loadActivity()]);
   } catch (e) {
@@ -318,7 +320,59 @@ async function previewRecipient() {
   previewSend();
 }
 
-async function run(label: string, build: () => Promise<{ sig: string; title: string; done: string }>) {
+// --- Nightly network setup help ------------------------------------------------------------------
+
+const netHelp = document.getElementById("netHelp") as HTMLDialogElement;
+
+function openNetHelp() {
+  if (!netHelp.open) netHelp.showModal();
+}
+
+netHelp.querySelectorAll<HTMLButtonElement>("[data-copy-value]").forEach((btn) =>
+  btn.addEventListener("click", async () => {
+    const value = btn.dataset.copyValue!;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // Older mobile webviews: fall back to a temporary selection.
+      const input = Object.assign(document.createElement("input"), { value });
+      document.body.append(input);
+      input.select();
+      document.execCommand("copy");
+      input.remove();
+    }
+    btn.classList.add("copied");
+    btn.textContent = "Copied";
+    setTimeout(() => {
+      btn.classList.remove("copied");
+      btn.textContent = "Copy";
+    }, 1500);
+  }),
+);
+
+document.getElementById("netHelpRetry")!.addEventListener("click", async (e) => {
+  const btn = e.currentTarget as HTMLButtonElement;
+  const note = document.getElementById("netHelpNote")!;
+  if (!owner) {
+    netHelp.close();
+    return void connect();
+  }
+  btn.classList.add("is-busy");
+  note.textContent = "";
+  try {
+    await ensureCookieNetwork();
+    netHelp.close();
+    toast("Nightly is on Cookie Chain");
+  } catch {
+    note.textContent = "Still not on Cookie Chain. Check that the network is added and selected in Nightly.";
+  } finally {
+    btn.classList.remove("is-busy");
+  }
+});
+
+document.querySelectorAll("[data-open-net-help]").forEach((el) => el.addEventListener("click", openNetHelp));
+
+async function run(label: string,build: () => Promise<{ sig: string; title: string; done: string }>) {
   if (!owner) return void connect();
   if (busy) return;
   busy = true;
@@ -337,6 +391,7 @@ async function run(label: string, build: () => Promise<{ sig: string; title: str
     await refreshWallet();
   } catch (e) {
     setStage("failed");
+    if (e instanceof NetworkSetupError) openNetHelp();
     const msg = (e as Error).message;
     setStatus(/reject|denied|cancel/i.test(msg) ? "You declined the transaction in Nightly." : msg, "err");
     stamp(false);
