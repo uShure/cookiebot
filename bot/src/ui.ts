@@ -60,10 +60,10 @@ export function home(wallet: UserWallet | null, cook: number | null, isGroup: bo
       wallet && `Your wallet  <code>${e(nameOf(wallet))}</code>${cook != null ? `  ·  ${fmtAmount(cook)} COOK` : ""}`,
     ],
     [
-      [cb("👀 Watch a wallet", "w:new"), cb("🔔 Price alert", "al:new")],
+      [cb("👀 Watch a wallet", "w:new", "primary"), cb("🔔 Price alert", "al:new")],
       [cb("💼 Portfolio", wallet ? `pf:${wallet.address}` : "pf:ask"), cb("📊 Market", "mk:0")],
       [cb("🍪 Tip someone", "tip:new")],
-      [wallet ? cb("⚙️ Settings", "st") : cb("🔗 Link my wallet", "lk:new", "primary")],
+      [wallet ? cb("⚙️ Settings", "st") : cb("🔗 Link my wallet", "lk:new", "success")],
       webButton("Open the app ↗", {}),
     ],
   );
