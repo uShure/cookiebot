@@ -34,16 +34,45 @@ export async function findNightly(timeoutMs = 1500): Promise<NightlySolana | nul
   return window.nightly?.solana ?? null;
 }
 
+const readGenesis = (): string | undefined => {
+  try {
+    return (provider as { genesisHash?: string } | null)?.genesisHash;
+  } catch {
+    return undefined;
+  }
+};
+
+/** True when Nightly reports Cookie Chain as its active network (unknown counts as not confirmed). */
+export const onCookieChain = () => readGenesis() === GENESIS_HASH;
+
+/**
+ * Nightly simulates every transaction on its own active network before showing the approval.
+ * Left on Solana, a COOK transfer fails there with "insufficient lamports", so switch first and
+ * verify the switch actually happened.
+ */
+export async function ensureCookieNetwork(): Promise<void> {
+  if (!provider) throw new Error("Connect Nightly first.");
+  const current = readGenesis();
+  if (current === undefined || current === GENESIS_HASH) return;
+  if (!provider.changeNetwork) throw new Error(NETWORK_HELP);
+  await provider.changeNetwork({ genesisHash: GENESIS_HASH, url: RPC_URL }).catch(() => undefined);
+  // The switch is confirmed in a Nightly popup; give the user time to approve it.
+  for (let i = 0; i < 40 && readGenesis() !== GENESIS_HASH; i++) await new Promise((r) => setTimeout(r, 500));
+  if (readGenesis() !== GENESIS_HASH) throw new Error(NETWORK_HELP);
+}
+
+export const NETWORK_HELP =
+  "Nightly is still on Solana. Approve the network switch in the Nightly popup, or in Nightly open the network menu → Custom SVM network → RPC https://rpc.cookiescan.io, then try again.";
+
 export async function connectNightly(): Promise<PublicKey> {
   provider = await findNightly();
   if (!provider) throw new Error("Nightly not found. Install the Nightly extension from nightly.app and reload.");
-  // Ask Nightly to point at Cookie Chain; a user can decline and still sign (we broadcast ourselves).
-  if (provider.changeNetwork) {
-    await provider.changeNetwork({ genesisHash: GENESIS_HASH, url: RPC_URL }).catch(() => undefined);
-  }
   const res = await provider.connect();
   const key = (res && "publicKey" in res && res.publicKey) || provider.publicKey;
   if (!key) throw new Error("Nightly did not return a public key.");
+  // Nightly ignores a network change from a site it isn't connected to, so switch only after connect.
+  // Declining here is not fatal: signing re-checks and asks again.
+  await ensureCookieNetwork().catch(() => undefined);
   return new PublicKey(key.toString());
 }
 
@@ -61,6 +90,7 @@ export async function signSendConfirm(
   onStage: (stage: "signing" | "sending" | "confirming") => void,
 ): Promise<string> {
   if (!provider) throw new Error("Connect Nightly first.");
+  await ensureCookieNetwork();
   onStage("signing");
   let signature: string;
   if (provider.signTransaction) {
