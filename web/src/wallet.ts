@@ -93,10 +93,12 @@ export async function signSendConfirm(
   await ensureCookieNetwork();
   onStage("signing");
   let signature: string;
+  let raw: Uint8Array | null = null;
   if (provider.signTransaction) {
     const signed = await provider.signTransaction(tx);
+    raw = signed.serialize();
     onStage("sending");
-    signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false, maxRetries: 3 });
+    signature = await connection.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 0 });
   } else if (provider.signAndSendTransaction) {
     const sent = await provider.signAndSendTransaction(tx);
     signature = typeof sent === "string" ? sent : sent.signature;
@@ -104,7 +106,46 @@ export async function signSendConfirm(
     throw new Error("This wallet cannot sign transactions.");
   }
   onStage("confirming");
-  const res = await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
-  if (res.value.err) throw new Error(`Transaction failed on-chain: ${JSON.stringify(res.value.err)}`);
-  return signature;
+  void blockhash;
+  return confirmByPolling(connection, signature, raw, lastValidBlockHeight);
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * web3.js confirmTransaction waits on a WebSocket subscription, and the public Cookie Chain WebSocket
+ * drops those silently, leaving the UI stuck. Poll over HTTP instead, rebroadcasting the signed
+ * transaction until it is confirmed or its blockhash expires.
+ */
+async function confirmByPolling(
+  connection: Connection,
+  signature: string,
+  raw: Uint8Array | null,
+  lastValidBlockHeight: number,
+): Promise<string> {
+  const started = Date.now();
+  let lastResend = started;
+  let lastHeightCheck = 0;
+  for (;;) {
+    const status = (await connection.getSignatureStatuses([signature]).catch(() => null))?.value[0];
+    if (status?.err) throw new Error(`Transaction failed on-chain: ${JSON.stringify(status.err)}`);
+    if (status?.confirmationStatus === "confirmed" || status?.confirmationStatus === "finalized") return signature;
+
+    const now = Date.now();
+    if (raw && now - lastResend >= 2000) {
+      lastResend = now;
+      connection.sendRawTransaction(raw, { skipPreflight: true, maxRetries: 0 }).catch(() => undefined);
+    }
+    if (now - lastHeightCheck >= 4000) {
+      lastHeightCheck = now;
+      const height = await connection.getBlockHeight("confirmed").catch(() => 0);
+      if (height > lastValidBlockHeight) {
+        const last = (await connection.getSignatureStatuses([signature], { searchTransactionHistory: true }).catch(() => null))?.value[0];
+        if (last && !last.err) return signature;
+        throw new Error("The network didn’t pick up the transaction before it expired. Nothing was charged — try again.");
+      }
+    }
+    if (now - started > 120_000) throw new Error("Still not confirmed after 2 minutes. Check Cookiescan before trying again.");
+    await sleep(1000);
+  }
 }
