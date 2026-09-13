@@ -43,9 +43,10 @@ interface RawMarket {
 
 /** Tokens tradeable against COOK, deepest first (from the 70 KB markets feed, not the 4 MB registry). */
 export async function loadMarketTokens(): Promise<MarketToken[]> {
-  const json = await getJson<{ data?: RawMarket[] }>(`${COOKIESCAN_API}/api/markets`);
+  // The feed puts the list under `markets` (older deploys used `data`).
+  const json = await getJson<{ markets?: RawMarket[]; data?: RawMarket[] }>(`${COOKIESCAN_API}/api/markets`);
   const byMint = new Map<string, MarketToken>();
-  for (const m of json.data ?? []) {
+  for (const m of json.markets ?? json.data ?? []) {
     const sides = [m.baseToken, m.quoteToken];
     if (!sides.some((s) => s.mint === COOK_MINT)) continue;
     const other = sides.find((s) => s.mint !== COOK_MINT);
