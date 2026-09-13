@@ -4,16 +4,29 @@ import type { Api } from "grammy";
 
 import { connection, describeWalletTx, findToken, getCookPriceUsd, getRegistry, COOK_MINT, type WalletTxEffect } from "./chain.js";
 import { config } from "./config.js";
-import { escapeHtml, explorerTx, fmtAmount, fmtPrice, fmtUsd, shortAddr } from "./format.js";
+import { fmtAmount, fmtUsd } from "./format.js";
 import * as store from "./store.js";
+import { activityCard, alertFired, tipCard, TIP_TTL_MINUTES, type ActivityLine, type Card } from "./ui.js";
 
-const TIP_TTL_SECONDS = 60 * 60;
 export const tipMemo = (id: string) => `cookiebot:tip:${id}`;
+
+const HTML = { parse_mode: "HTML" as const, link_preview_options: { is_disabled: true } };
+
+export async function sendCard(api: Api, chatId: number, c: Card) {
+  return api.sendMessage(chatId, c.text, { ...HTML, ...(c.reply_markup ? { reply_markup: c.reply_markup } : {}) });
+}
+
+export async function editCard(api: Api, chatId: number, messageId: number, c: Card) {
+  return api.editMessageText(chatId, messageId, c.text, { ...HTML, reply_markup: c.reply_markup ?? { inline_keyboard: [] } });
+}
+
+const logSendError = (where: string) => (e: { description?: string; message?: string }) =>
+  console.error(`[${where}]`, e.description ?? e.message);
 
 // --- Wallet alerts -------------------------------------------------------------------------------
 
 const subscriptions = new Map<string, number>();
-const seen = new Map<string, number>(); // `${address}:${sig}` → time, to drop duplicate notifications
+const seen = new Map<string, number>();
 
 function alreadySeen(key: string): boolean {
   if (seen.has(key)) return true;
@@ -25,40 +38,46 @@ function alreadySeen(key: string): boolean {
   return false;
 }
 
-async function usdValue(mint: string, amount: number): Promise<number | null> {
-  const price = mint === COOK_MINT ? await getCookPriceUsd() : (await getRegistry()).get(mint)?.priceUsd;
-  return price != null ? Math.abs(amount) * price : null;
+async function describeLines(effect: WalletTxEffect): Promise<ActivityLine[]> {
+  const [cookPrice, registry] = await Promise.all([getCookPriceUsd(), getRegistry()]);
+  return effect.changes.map((c) => {
+    const price = c.mint === COOK_MINT ? cookPrice : registry.get(c.mint)?.priceUsd;
+    const usd = price != null ? Math.abs(c.delta) * price : null;
+    return { text: `${c.delta > 0 ? "+" : "−"}${fmtAmount(Math.abs(c.delta))} ${c.symbol}`, usd: usd != null ? fmtUsd(usd) : null };
+  });
 }
 
-async function renderEffect(effect: WalletTxEffect, address: string, label: string | null): Promise<string> {
-  const who = label ? `<b>${escapeHtml(label)}</b> <code>${shortAddr(address)}</code>` : `<code>${shortAddr(address)}</code>`;
-  const incoming = effect.changes.some((c) => c.delta > 0) && !effect.changes.some((c) => c.delta < 0);
-  const head = effect.failed ? "⚠️ Failed transaction" : incoming ? "📥 Incoming" : "🔄 Activity";
-  const lines = [`${head} · ${who}`];
-  for (const c of effect.changes) {
-    const usd = await usdValue(c.mint, c.delta);
-    const sign = c.delta > 0 ? "+" : "−";
-    lines.push(`${sign}${fmtAmount(Math.abs(c.delta))} ${escapeHtml(c.symbol)}${usd != null ? ` (${fmtUsd(usd)})` : ""}`);
-  }
-  if (effect.memo) lines.push(`📝 ${escapeHtml(effect.memo.slice(0, 200))}`);
-  lines.push(`<a href="${explorerTx(effect.signature)}">View on Cookiescan</a>`);
-  return lines.join("\n");
+function kindOf(effect: WalletTxEffect) {
+  if (effect.failed) return "failed" as const;
+  const up = effect.changes.some((c) => c.delta > 0);
+  const down = effect.changes.some((c) => c.delta < 0);
+  if (up && down) return "swap" as const;
+  if (up) return "received" as const;
+  if (down) return "sent" as const;
+  return "activity" as const;
 }
 
 async function onWalletLogs(api: Api, address: string, signature: string): Promise<void> {
   if (alreadySeen(`${address}:${signature}`)) return;
-  // The RPC may not serve the tx the instant the log arrives.
+  // The RPC may not serve the transaction the instant its log arrives.
   let effect: WalletTxEffect | null = null;
   for (let attempt = 0; attempt < 5 && !effect; attempt++) {
     effect = await describeWalletTx(signature, address).catch(() => null);
     if (!effect) await new Promise((r) => setTimeout(r, 1500));
   }
-  if (!effect || effect.changes.length === 0) return;
+  if (!effect || (effect.changes.length === 0 && !effect.failed)) return;
+  const lines = await describeLines(effect);
   for (const w of store.watchersOf(address)) {
-    const text = await renderEffect(effect, address, w.label);
-    await api.sendMessage(w.chat_id, text, { parse_mode: "HTML", link_preview_options: { is_disabled: true } }).catch((e) => {
-      console.error(`[watch] send to ${w.chat_id} failed:`, e.description ?? e.message);
+    const c = activityCard({
+      kind: kindOf(effect),
+      address,
+      label: w.label,
+      lines,
+      counterparty: effect.counterparty,
+      memo: effect.memo?.startsWith("cookiebot:tip:") ? null : effect.memo,
+      signature,
     });
+    await sendCard(api, w.chat_id, c).catch(logSendError("watch"));
   }
 }
 
@@ -93,28 +112,27 @@ async function checkPriceAlerts(api: Api): Promise<void> {
     const price = prices.get(a.mint);
     if (price == null) continue;
     const hit = a.direction === "above" ? price >= a.target : price <= a.target;
-    if (!hit) continue;
-    store.deletePriceAlert(a.id);
-    const arrow = a.direction === "above" ? "🚀" : "📉";
-    await api
-      .sendMessage(
-        a.chat_id,
-        `${arrow} <b>${escapeHtml(a.symbol)}</b> is ${a.direction} ${fmtPrice(a.target)}\nNow: <b>${fmtPrice(price)}</b>`,
-        { parse_mode: "HTML" },
-      )
-      .catch((e) => console.error("[price] send failed:", e.description ?? e.message));
+    if (!hit || !store.deletePriceAlert(a.id)) continue;
+    await sendCard(api, a.chat_id, alertFired(a, price)).catch(logSendError("price"));
   }
 }
 
 // --- Tips ----------------------------------------------------------------------------------------
 
+/** Re-render a tip message in place after its status changed. */
+export async function refreshTipMessage(api: Api, tipId: string): Promise<void> {
+  const tip = store.getTip(tipId);
+  if (!tip?.message_id) return;
+  const c = tipCard(tip, await getCookPriceUsd().catch(() => null));
+  await editCard(api, tip.chat_id, tip.message_id, c).catch(logSendError("tips"));
+}
+
 async function checkTips(api: Api): Promise<void> {
-  const tips = store.pendingTips();
   const nowSec = Math.floor(Date.now() / 1000);
   const byRecipient = new Map<string, store.Tip[]>();
-  for (const t of tips) {
-    if (nowSec - t.created_at > TIP_TTL_SECONDS) {
-      store.markTip(t.id, "expired");
+  for (const t of store.pendingTips()) {
+    if (nowSec - t.created_at > TIP_TTL_MINUTES * 60) {
+      if (store.markTip(t.id, "expired")) await refreshTipMessage(api, t.id);
       continue;
     }
     byRecipient.set(t.to_address, [...(byRecipient.get(t.to_address) ?? []), t]);
@@ -123,17 +141,7 @@ async function checkTips(api: Api): Promise<void> {
     const sigs = await connection.getSignaturesForAddress(new PublicKey(recipient), { limit: 25 }).catch(() => []);
     for (const tip of list) {
       const match = sigs.find((s) => !s.err && s.memo?.includes(tipMemo(tip.id)));
-      if (!match) continue;
-      store.markTip(tip.id, "paid", match.signature);
-      const text =
-        `✅ <b>${escapeHtml(tip.from_name)}</b> tipped <b>${fmtAmount(tip.amount)} COOK</b> to ${escapeHtml(tip.to_label)}\n` +
-        `<a href="${explorerTx(match.signature)}">Confirmed on Cookie Chain</a>`;
-      const opts = { parse_mode: "HTML" as const, link_preview_options: { is_disabled: true } };
-      if (tip.message_id) {
-        await api.editMessageText(tip.chat_id, tip.message_id, text, opts).catch(() => api.sendMessage(tip.chat_id, text, opts));
-      } else {
-        await api.sendMessage(tip.chat_id, text, opts).catch(() => {});
-      }
+      if (match && store.markTip(tip.id, "paid", match.signature)) await refreshTipMessage(api, tip.id);
     }
   }
 }

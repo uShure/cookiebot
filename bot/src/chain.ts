@@ -252,6 +252,8 @@ export interface WalletTxEffect {
   blockTime: number | null;
   memo: string | null;
   changes: BalanceChange[];
+  /** The other side of the main balance change, when one can be identified. */
+  counterparty: string | null;
 }
 
 export function memoOf(tx: ParsedTransactionWithMeta): string | null {
@@ -292,5 +294,36 @@ export async function describeWalletTx(signature: string, wallet: string): Promi
     changes.push({ mint, symbol, delta });
   }
 
-  return { signature, failed: meta.err != null, blockTime: tx.blockTime ?? null, memo: memoOf(tx), changes };
+  // Counterparty: the account whose balance of the same asset moved the opposite way the most.
+  let counterparty: string | null = null;
+  const main = changes[0];
+  if (main) {
+    let best = 0;
+    if (main.symbol === "COOK") {
+      for (let i = 0; i < keys.length; i++) {
+        if (keys[i] === wallet) continue;
+        const d = meta.postBalances[i] - meta.preBalances[i];
+        if (Math.sign(d) === -Math.sign(main.delta) && Math.abs(d) > best) {
+          best = Math.abs(d);
+          counterparty = keys[i];
+        }
+      }
+    } else {
+      const byOwner = new Map<string, number>();
+      for (const b of meta.preTokenBalances ?? []) {
+        if (b.mint === main.mint && b.owner && b.owner !== wallet) byOwner.set(b.owner, (byOwner.get(b.owner) ?? 0) - (b.uiTokenAmount.uiAmount ?? 0));
+      }
+      for (const b of meta.postTokenBalances ?? []) {
+        if (b.mint === main.mint && b.owner && b.owner !== wallet) byOwner.set(b.owner, (byOwner.get(b.owner) ?? 0) + (b.uiTokenAmount.uiAmount ?? 0));
+      }
+      for (const [owner, d] of byOwner) {
+        if (Math.sign(d) === -Math.sign(main.delta) && Math.abs(d) > best) {
+          best = Math.abs(d);
+          counterparty = owner;
+        }
+      }
+    }
+  }
+
+  return { signature, failed: meta.err != null, blockTime: tx.blockTime ?? null, memo: memoOf(tx), changes, counterparty };
 }

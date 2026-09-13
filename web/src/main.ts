@@ -282,7 +282,8 @@ async function connect() {
     ui.swapBtn.textContent = "Swap";
     ui.sendBtn.disabled = false;
     ui.swapBtn.disabled = !ui.swapToken.value;
-    ui.tgLink.href = `https://t.me/${BOT_USERNAME}?start=watch_${addr}`;
+    // link_ both links the wallet as the user's own (so /tip @user works) and watches it.
+    ui.tgLink.href = `https://t.me/${BOT_USERNAME}?start=link_${addr}`;
     ui.tgLink.hidden = false;
     toast("Nightly connected to Cookie Chain");
     onAccountChange(() => location.reload());

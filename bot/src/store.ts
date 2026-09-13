@@ -1,4 +1,4 @@
-// SQLite persistence (node:sqlite, no native build step): watched wallets, price alerts, tips.
+// SQLite persistence (node:sqlite, no native build step): linked wallets, watches, price alerts, tips.
 import { DatabaseSync } from "node:sqlite";
 
 import { config } from "./config.js";
@@ -34,9 +34,60 @@ db.exec(`
     signature TEXT,
     created_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS user_wallets (
+    user_id INTEGER PRIMARY KEY,
+    username TEXT,
+    address TEXT NOT NULL,
+    name TEXT,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS user_wallets_username ON user_wallets (lower(username));
 `);
 
+// Columns added after the first deploy; ALTER is a no-op error when they already exist.
+for (const ddl of ["ALTER TABLE tips ADD COLUMN creator_id INTEGER"]) {
+  try {
+    db.exec(ddl);
+  } catch {
+    /* column exists */
+  }
+}
+
 const now = () => Math.floor(Date.now() / 1000);
+
+// --- Linked wallets ------------------------------------------------------------------------------
+
+export interface UserWallet {
+  user_id: number;
+  username: string | null;
+  address: string;
+  name: string | null;
+}
+
+export function linkWallet(userId: number, username: string | undefined, address: string, name: string | null): void {
+  db.prepare(
+    `INSERT INTO user_wallets (user_id, username, address, name, updated_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET username = excluded.username, address = excluded.address, name = excluded.name, updated_at = excluded.updated_at`,
+  ).run(userId, username ?? null, address, name, now());
+}
+
+export function unlinkWallet(userId: number): boolean {
+  return db.prepare("DELETE FROM user_wallets WHERE user_id = ?").run(userId).changes > 0;
+}
+
+export function walletOfUser(userId: number): UserWallet | null {
+  return (db.prepare("SELECT user_id, username, address, name FROM user_wallets WHERE user_id = ?").get(userId) as unknown as UserWallet) ?? null;
+}
+
+export function walletOfUsername(username: string): UserWallet | null {
+  const clean = username.replace(/^@/, "").toLowerCase();
+  return (db.prepare("SELECT user_id, username, address, name FROM user_wallets WHERE lower(username) = ?").get(clean) as unknown as UserWallet) ?? null;
+}
+
+/** Keep the stored @username fresh so /tip @name keeps working after renames. */
+export function touchUsername(userId: number, username: string | undefined): void {
+  db.prepare("UPDATE user_wallets SET username = ? WHERE user_id = ? AND coalesce(username, '') <> coalesce(?, '')").run(username ?? null, userId, username ?? null);
+}
 
 // --- Watches -------------------------------------------------------------------------------------
 
@@ -53,8 +104,16 @@ export function addWatch(chatId: number, address: string, label: string | null):
   return r.changes > 0;
 }
 
+export function renameWatch(chatId: number, address: string, label: string): boolean {
+  return db.prepare("UPDATE watches SET label = ? WHERE chat_id = ? AND address = ?").run(label, chatId, address).changes > 0;
+}
+
 export function removeWatch(chatId: number, address: string): boolean {
   return db.prepare("DELETE FROM watches WHERE chat_id = ? AND address = ?").run(chatId, address).changes > 0;
+}
+
+export function getWatch(chatId: number, address: string): Watch | null {
+  return (db.prepare("SELECT chat_id, address, label FROM watches WHERE chat_id = ? AND address = ?").get(chatId, address) as unknown as Watch) ?? null;
 }
 
 export function watchesForChat(chatId: number): Watch[] {
@@ -108,18 +167,23 @@ export interface Tip {
   id: string;
   chat_id: number;
   message_id: number | null;
+  creator_id: number | null;
   from_name: string;
   to_address: string;
   to_label: string;
   amount: number;
-  status: "pending" | "paid" | "expired";
+  status: "pending" | "paid" | "expired" | "cancelled";
   signature: string | null;
   created_at: number;
 }
 
-export function createTip(t: Omit<Tip, "status" | "signature" | "created_at" | "message_id">): void {
-  db.prepare("INSERT INTO tips (id, chat_id, from_name, to_address, to_label, amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(t.id, t.chat_id, t.from_name, t.to_address, t.to_label, t.amount, now());
+export function createTip(t: Pick<Tip, "id" | "chat_id" | "creator_id" | "from_name" | "to_address" | "to_label" | "amount">): void {
+  db.prepare("INSERT INTO tips (id, chat_id, creator_id, from_name, to_address, to_label, amount, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(t.id, t.chat_id, t.creator_id, t.from_name, t.to_address, t.to_label, t.amount, now());
+}
+
+export function getTip(id: string): Tip | null {
+  return (db.prepare("SELECT * FROM tips WHERE id = ?").get(id) as unknown as Tip) ?? null;
 }
 
 export function setTipMessage(id: string, messageId: number): void {
@@ -130,6 +194,6 @@ export function pendingTips(): Tip[] {
   return db.prepare("SELECT * FROM tips WHERE status = 'pending'").all() as unknown as Tip[];
 }
 
-export function markTip(id: string, status: Tip["status"], signature: string | null = null): void {
-  db.prepare("UPDATE tips SET status = ?, signature = ? WHERE id = ?").run(status, signature, id);
+export function markTip(id: string, status: Tip["status"], signature: string | null = null): boolean {
+  return db.prepare("UPDATE tips SET status = ?, signature = ? WHERE id = ? AND status = 'pending'").run(status, signature, id).changes > 0;
 }

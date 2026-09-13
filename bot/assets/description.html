@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face {
+    font-family: "Bricolage";
+    src: url("../../web/node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-standard-normal.woff2") format("woff2");
+    font-weight: 200 800;
+    font-stretch: 75% 100%;
+  }
+  @font-face {
+    font-family: "RecMono";
+    src: url("../../web/node_modules/@fontsource-variable/recursive/files/recursive-latin-mono-normal.woff2") format("woff2");
+    font-weight: 300 1000;
+  }
+  html, body { margin: 0; width: 640px; height: 360px; overflow: hidden; }
+  body {
+    position: relative;
+    font-family: "Bricolage", system-ui, sans-serif;
+    color: #0b1f3a;
+    background:
+      radial-gradient(rgba(11, 31, 58, 0.08) 1.4px, transparent 1.9px) 0 0 / 20px 20px,
+      linear-gradient(180deg, #e9f7ff 0, #fff4d4 62%);
+  }
+  .awning {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 34px;
+    background: repeating-linear-gradient(90deg, #8bd3ff 0 32px, #fffdf6 32px 64px);
+    -webkit-mask: linear-gradient(#000 0 0) top / 100% 18px no-repeat,
+      radial-gradient(circle 16px at 16px 0, #000 96%, transparent 100%) 0 18px / 32px 16px repeat-x;
+  }
+  h1 {
+    position: absolute;
+    left: 34px;
+    top: 74px;
+    width: 300px;
+    margin: 0;
+    font-size: 49px;
+    line-height: 0.94;
+    font-weight: 800;
+    font-stretch: 88%;
+    letter-spacing: -2px;
+  }
+  h1 span { position: relative; z-index: 0; }
+  h1 span::after {
+    content: "";
+    position: absolute;
+    left: -4px; right: -6px; bottom: 7px; height: 15px;
+    z-index: -1;
+    border-radius: 12px;
+    background: #ffc65d;
+    transform: rotate(-2deg);
+  }
+  p {
+    position: absolute;
+    left: 34px;
+    top: 262px;
+    width: 250px;
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.35;
+    color: #4a5a72;
+  }
+  .card {
+    position: absolute;
+    right: 34px;
+    top: 70px;
+    width: 238px;
+    padding: 14px 16px 12px;
+    border: 3px solid #0b1f3a;
+    border-radius: 18px 18px 18px 5px;
+    background: #d8f1ff;
+    box-shadow: 8px 9px 0 #0b1f3a;
+    transform: rotate(2deg);
+    font-size: 15px;
+  }
+  .card b { display: block; font-size: 16px; margin-bottom: 6px; }
+  .mono { font-family: "RecMono", ui-monospace, monospace; font-variation-settings: "MONO" 1; }
+  .big { font-size: 25px; font-weight: 700; letter-spacing: -0.5px; }
+  .muted { color: #4a5a72; font-size: 13px; }
+  .pay {
+    position: absolute;
+    right: 128px;
+    top: 222px;
+    padding: 9px 16px;
+    border: 3px solid #0b1f3a;
+    border-radius: 999px;
+    background: #ffc65d;
+    box-shadow: 0 5px 0 #0b1f3a;
+    font-weight: 700;
+    font-size: 16px;
+    transform: rotate(-3deg);
+  }
+  .ok {
+    position: absolute;
+    right: 40px;
+    top: 290px;
+    padding: 7px 13px;
+    border: 3px solid #0b1f3a;
+    border-radius: 14px;
+    background: #d9f5e6;
+    font-size: 14px;
+    font-weight: 600;
+    transform: rotate(1.5deg);
+  }
+</style>
+</head>
+<body>
+  <div class="awning"></div>
+  <h1>Cookie Chain, <span>served</span> in Telegram.</h1>
+  <p>Wallet alerts, price alerts and COOK tips that confirm themselves in the chat.</p>
+  <div class="card">
+    <b>Received · Main jar</b>
+    <div class="mono big">+12,500 COOK</div>
+    <div class="mono muted">≈ $0.88 · from cookie.cook</div>
+  </div>
+  <div class="pay">Pay with Nightly</div>
+  <div class="ok">✓ Tip confirmed on-chain</div>
+</body>
+</html>

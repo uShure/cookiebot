@@ -6,7 +6,9 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "profile": "tsx scripts/profile.ts",
+    "cards": "tsx scripts/cards-check.ts"
   },
   "keywords": [],
   "author": "",
