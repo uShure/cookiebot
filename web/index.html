@@ -3,68 +3,238 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CookieBot — Cookie Chain in Telegram</title>
-    <meta name="description" content="Send, tip and swap on Cookie Chain with Nightly, and get live wallet alerts in Telegram." />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍪</text></svg>" />
+    <title>CookieBot — Cookie Chain, served in Telegram</title>
+    <meta name="description" content="Live wallet alerts, price alerts and COOK tips that confirm themselves in your Telegram chat. Send and swap on Cookie Chain with Nightly." />
+    <meta name="theme-color" content="#fff4d4" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='33' r='27' fill='%23ffc65d' stroke='%230b1f3a' stroke-width='4'/%3E%3Cg fill='%230b1f3a'%3E%3Crect x='19' y='22' width='7' height='6' rx='2' transform='rotate(-18 22 25)'/%3E%3Crect x='36' y='30' width='7' height='6' rx='2' transform='rotate(24 39 33)'/%3E%3Crect x='24' y='40' width='6' height='5' rx='2' transform='rotate(8 27 42)'/%3E%3C/g%3E%3C/svg%3E" />
   </head>
   <body>
-    <header class="top">
-      <div class="brand">🍪 <b>CookieBot</b> <span class="muted">on Cookie Chain</span></div>
-      <div class="wallet-box">
-        <span id="netBadge" class="badge">RPC…</span>
-        <button id="connectBtn" type="button">Connect Nightly</button>
-      </div>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <symbol id="cookie" viewBox="0 0 64 64">
+          <mask id="bite">
+            <rect width="64" height="64" fill="#fff" />
+            <circle cx="55" cy="9" r="11" fill="#000" />
+            <circle cx="61" cy="22" r="6" fill="#000" />
+          </mask>
+          <g mask="url(#bite)">
+            <path class="cookie-body" d="M32 5.5c4.2 0 6.3 2.4 10.1 3.6 3.9 1.2 7.3.2 10 3.1 2.7 2.9 1.9 6.2 3.3 10 1.3 3.7 3.9 5.6 3.9 9.8s-2.5 6.1-3.8 9.9c-1.3 3.8-.4 7.1-3.2 10-2.8 2.9-6.1 2-9.9 3.3-3.8 1.3-6.2 3.9-10.4 3.9s-6.5-2.6-10.3-3.9c-3.8-1.3-7-.4-9.8-3.3-2.8-2.9-1.9-6.2-3.2-10C7.4 38.1 5 36.2 5 32s2.5-6.1 3.8-9.9c1.3-3.8.5-7 3.3-9.9 2.8-2.9 6.1-1.9 9.9-3.2C25.8 7.8 27.8 5.5 32 5.5Z" />
+          </g>
+          <g class="chips">
+            <path d="M18.5 21.5l6.2-2.3 1.9 5.6-6.1 2.4z" />
+            <path d="M35.6 27.9l6.4 1.3-1.1 6-6.5-1.2z" />
+            <path d="M22.3 39.1l5.4-.9.9 5.3-5.5.9z" />
+            <path d="M40.8 43.2l4.6 2.7-2.6 4.4-4.7-2.7z" />
+            <path d="M30.2 15.6l3.9-1 1 3.8-3.9 1z" />
+          </g>
+        </symbol>
+      </defs>
+    </svg>
+
+    <div class="awning" aria-hidden="true"></div>
+
+    <header class="bar wrap">
+      <a class="brand" href="./" aria-label="CookieBot home">
+        <svg class="brand-mark" aria-hidden="true"><use href="#cookie" /></svg>
+        <span>CookieBot</span>
+      </a>
+      <nav class="bar-links" aria-label="Sections">
+        <a href="#counter">Counter</a>
+        <a href="#jar">Your jar</a>
+        <a href="#shelf">Shelf</a>
+        <a href="#menu">Bot menu</a>
+      </nav>
+      <button id="connectBtn" class="btn btn-ink" type="button">
+        <span class="wallet-dot" aria-hidden="true"></span>
+        <span id="connectLabel">Connect Nightly</span>
+      </button>
     </header>
 
-    <main class="grid">
-      <section class="card" id="walletCard">
-        <h2>Wallet</h2>
-        <p id="walletLine" class="muted">Not connected. Nightly is required — <a href="https://nightly.app/" target="_blank" rel="noopener">install it</a>.</p>
-        <div id="balances" class="balances"></div>
-        <a id="tgLink" class="button ghost" hidden target="_blank" rel="noopener">🔔 Get live alerts in Telegram</a>
+    <div class="ticker" aria-label="Live Cookie Chain prices">
+      <div class="ticker-track" id="tickerTrack"><span class="ticker-item">Loading the shelf…</span></div>
+    </div>
+
+    <main>
+      <section class="hero wrap">
+        <div class="hero-copy">
+          <p class="eyebrow reveal"><span class="live-dot" id="liveDot" aria-hidden="true"></span><span id="netBadge">Reaching Cookie Chain…</span></p>
+          <h1 class="reveal">Cookie Chain,<br /><span class="scribble">served</span> in Telegram.</h1>
+          <p class="lede reveal">
+            Live wallet alerts, price alerts and COOK tips that confirm themselves in your group chat.
+            Anything that needs a signature happens right here, in Nightly.
+          </p>
+          <div class="hero-cta reveal">
+            <a class="btn btn-gold btn-lg" id="botCta" href="https://t.me/pechenietest_bot" target="_blank" rel="noopener">Open the bot</a>
+            <a class="btn btn-ghost btn-lg" href="#counter">Send or swap</a>
+          </div>
+          <dl class="board reveal">
+            <div><dt>Slot</dt><dd class="mono" id="statSlot">—</dd></div>
+            <div><dt>COOK</dt><dd class="mono" id="statPrice">—</dd></div>
+            <div><dt>COOK pairs</dt><dd class="mono" id="statPairs">—</dd></div>
+            <div><dt>Fee / tx</dt><dd class="mono">0.000005</dd></div>
+          </dl>
+        </div>
+
+        <div class="hero-demo reveal" aria-hidden="true">
+          <svg class="hero-cookie"><use href="#cookie" /></svg>
+          <div class="phone">
+            <div class="phone-top">
+              <svg class="phone-avatar"><use href="#cookie" /></svg>
+              <div><b>CookieBot</b><small id="demoStatus">bot</small></div>
+            </div>
+            <ol class="chat" id="chatDemo"></ol>
+          </div>
+        </div>
       </section>
 
-      <section class="card" id="sendCard">
-        <h2 id="sendTitle">Send COOK</h2>
-        <form id="sendForm">
-          <label>Recipient <input id="sendTo" placeholder="address or name.cook" autocomplete="off" required /></label>
-          <p id="sendResolved" class="hint"></p>
-          <label>Amount (COOK) <input id="sendAmount" type="number" min="0" step="any" placeholder="100" required /></label>
-          <label>Memo <input id="sendMemo" placeholder="optional" maxlength="120" /></label>
-          <button id="sendBtn" type="submit" disabled>Sign &amp; send</button>
-        </form>
+      <section id="counter" class="counter wrap">
+        <header class="section-head">
+          <span class="section-num">01</span>
+          <h2>The counter</h2>
+          <p>Fill in the order, check the ticket, sign it in Nightly.</p>
+        </header>
+
+        <div class="counter-grid">
+          <div class="order">
+            <div class="tabs" role="tablist" aria-label="Transaction type">
+              <button class="tab" role="tab" id="tabSend" aria-selected="true" aria-controls="sendForm" data-mode="send" type="button">Send</button>
+              <button class="tab" role="tab" id="tabSwap" aria-selected="false" aria-controls="swapForm" data-mode="swap" type="button">Swap</button>
+              <span class="tab-ink" aria-hidden="true"></span>
+            </div>
+
+            <form id="sendForm" class="pane" role="tabpanel" aria-labelledby="tabSend">
+              <p class="pane-note" id="tipNote" hidden></p>
+              <label class="field">
+                <span class="field-label">Recipient</span>
+                <input id="sendTo" placeholder="address or name.cook" autocomplete="off" spellcheck="false" required />
+              </label>
+              <p id="sendResolved" class="hint"></p>
+              <div class="row-2">
+                <label class="field">
+                  <span class="field-label">Amount</span>
+                  <span class="affix"><input id="sendAmount" type="number" min="0" step="any" placeholder="100" required /><b>COOK</b></span>
+                </label>
+                <label class="field">
+                  <span class="field-label">Memo <i>optional</i></span>
+                  <input id="sendMemo" maxlength="120" placeholder="thanks for the recipe" />
+                </label>
+              </div>
+              <div class="chips-row" role="group" aria-label="Quick amounts">
+                <button type="button" class="chip" data-amount="100">100</button>
+                <button type="button" class="chip" data-amount="1000">1K</button>
+                <button type="button" class="chip" data-amount="10000">10K</button>
+                <button type="button" class="chip" data-amount="max">Max</button>
+              </div>
+              <button id="sendBtn" class="btn btn-ink btn-block" type="submit" disabled>Sign &amp; send</button>
+            </form>
+
+            <form id="swapForm" class="pane" role="tabpanel" aria-labelledby="tabSwap" hidden>
+              <label class="field">
+                <span class="field-label">You pay</span>
+                <span class="affix"><input id="swapAmount" type="number" min="0" step="any" value="1000" required /><b>COOK</b></span>
+              </label>
+              <div class="swap-turn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 4v14m0 0-5-5m5 5 5-5" /></svg></div>
+              <label class="field">
+                <span class="field-label">You get</span>
+                <select id="swapToken"><option value="">Choose a token…</option></select>
+              </label>
+              <p id="swapQuote" class="hint">Routed through the Cookiebox aggregator.</p>
+              <button id="swapBtn" class="btn btn-ink btn-block" type="submit" disabled>Swap</button>
+            </form>
+          </div>
+
+          <aside class="ticket" aria-live="polite" aria-label="Transaction ticket">
+            <div class="ticket-slot" aria-hidden="true"></div>
+            <div class="ticket-paper" id="ticket">
+              <p class="ticket-head">CookieBot <span>·</span> order ticket</p>
+              <p class="ticket-no mono" id="ticketNo">No. 000000</p>
+              <dl class="ticket-lines" id="ticketLines">
+                <div><dt>Status</dt><dd>Waiting for an order</dd></div>
+              </dl>
+              <ol class="stages" id="stages">
+                <li data-stage="build">Build</li>
+                <li data-stage="signing">Sign</li>
+                <li data-stage="sending">Broadcast</li>
+                <li data-stage="confirming">Confirm</li>
+              </ol>
+              <p class="ticket-status" id="status" role="status"></p>
+              <a id="ticketLink" class="ticket-link" hidden target="_blank" rel="noopener">View on Cookiescan →</a>
+              <div class="stamp" id="stamp" aria-hidden="true">Baked</div>
+            </div>
+          </aside>
+        </div>
       </section>
 
-      <section class="card" id="swapCard">
-        <h2>Swap</h2>
-        <form id="swapForm">
-          <label>You pay (COOK) <input id="swapAmount" type="number" min="0" step="any" value="1000" required /></label>
-          <label>You get
-            <select id="swapToken"></select>
-          </label>
-          <p id="swapQuote" class="hint">Pick a token to get a quote from the Cookiebox aggregator.</p>
-          <button id="swapBtn" type="submit" disabled>Swap</button>
-        </form>
+      <section id="jar" class="jar-section wrap">
+        <header class="section-head">
+          <span class="section-num">02</span>
+          <h2>Your jar</h2>
+          <p>Balance and the latest transactions of the connected wallet.</p>
+        </header>
+        <div class="jar">
+          <div class="jar-card">
+            <p class="jar-address mono" id="walletLine">Not connected</p>
+            <p class="jar-balance"><span class="mono" id="balCook">—</span><small>COOK</small></p>
+            <p class="jar-usd mono" id="balUsd">Connect Nightly to open the jar.</p>
+            <a id="tgLink" class="btn btn-gold" hidden target="_blank" rel="noopener">Get live alerts in Telegram</a>
+            <a class="jar-install" id="installHint" href="https://nightly.app/" target="_blank" rel="noopener">No Nightly yet? Install it →</a>
+          </div>
+          <ol class="timeline" id="activity">
+            <li class="timeline-empty">Your transactions will show up here.</li>
+          </ol>
+        </div>
       </section>
 
-      <section class="card wide">
-        <h2>Activity</h2>
-        <div id="status" class="status" role="status"></div>
-        <ul id="activity" class="activity"><li class="muted">Your transactions will appear here.</li></ul>
+      <section id="shelf" class="shelf-section wrap">
+        <header class="section-head">
+          <span class="section-num">03</span>
+          <h2>Today’s shelf</h2>
+          <p>The deepest COOK pairs on Cookie Chain, straight from Cookiescan.</p>
+        </header>
+        <ol class="shelf" id="shelfList"></ol>
       </section>
 
-      <section class="card wide">
-        <h2>Top tokens <span class="muted small">by liquidity · Cookiescan</span></h2>
-        <div class="table-wrap"><table id="market"><thead><tr><th>Token</th><th>Price</th><th>24h</th><th>Holders</th><th></th></tr></thead><tbody></tbody></table></div>
+      <section id="menu" class="menu-section wrap">
+        <header class="section-head">
+          <span class="section-num">04</span>
+          <h2>Bot menu</h2>
+          <p>Works in private chats and groups. Tap a line to copy it.</p>
+        </header>
+        <div class="menu-grid">
+          <ul class="menu">
+            <li><button type="button" data-copy="/watch cookie.cook"><code>/watch <i>name.cook</i></code><span class="leader"></span><span>live alert on every transfer</span></button></li>
+            <li><button type="button" data-copy="/tip cookie.cook 500"><code>/tip <i>name.cook 500</i></code><span class="leader"></span><span>tip in chat, confirmed on-chain</span></button></li>
+            <li><button type="button" data-copy="/alert bCOOK above 0.0001"><code>/alert <i>bCOOK above 0.0001</i></code><span class="leader"></span><span>price alert</span></button></li>
+            <li><button type="button" data-copy="/portfolio cookie.cook"><code>/portfolio <i>name.cook</i></code><span class="leader"></span><span>balances in USD</span></button></li>
+            <li><button type="button" data-copy="/price bCOOK"><code>/price <i>bCOOK</i></code><span class="leader"></span><span>price, 24h change, holders</span></button></li>
+            <li><button type="button" data-copy="/top"><code>/top</code><span class="leader"></span><span>deepest tokens right now</span></button></li>
+            <li><button type="button" data-copy="/swap bCOOK"><code>/swap <i>bCOOK</i></code><span class="leader"></span><span>swap link for the chat</span></button></li>
+          </ul>
+          <aside class="group-card">
+            <h3>Bring it to your group</h3>
+            <p>Add the bot once. After that anyone can watch a wallet or tip a friend without leaving the chat.</p>
+            <a class="btn btn-ink" id="groupCta" href="https://t.me/pechenietest_bot?startgroup=true" target="_blank" rel="noopener">Add to a group</a>
+            <p class="group-small mono">No sign-up. No custody. Just cookies.</p>
+            <svg class="group-cookie" aria-hidden="true"><use href="#cookie" /></svg>
+          </aside>
+        </div>
       </section>
     </main>
 
-    <footer class="muted small">
-      Non-custodial: every transaction is built in your browser and signed in Nightly. Need COOK? Bridge it from Solana at
-      <a href="https://hyperlane.cookiescan.io" target="_blank" rel="noopener">hyperlane.cookiescan.io</a>.
-      · <a href="https://github.com/uShure/cookiebot" target="_blank" rel="noopener">Source</a>
+    <footer class="foot wrap">
+      <svg class="foot-mark" aria-hidden="true"><use href="#cookie" /></svg>
+      <p>
+        Non-custodial: every transaction is built in your browser, signed in Nightly and sent through the Cookie Chain RPC.
+        Need COOK? Bridge it from Solana at <a href="https://hyperlane.cookiescan.io" target="_blank" rel="noopener">hyperlane.cookiescan.io</a>.
+      </p>
+      <p class="foot-links">
+        <a href="https://github.com/uShure/cookiebot" target="_blank" rel="noopener">Source</a>
+        <a href="https://cookiescan.io" target="_blank" rel="noopener">Cookiescan</a>
+        <a href="https://www.cookiechain.wtf" target="_blank" rel="noopener">Cookie Chain</a>
+      </p>
     </footer>
 
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -35,29 +35,51 @@ export interface MarketToken {
   pools: number;
 }
 
+interface RawSide {
+  mint: string;
+  symbol?: string;
+  amount?: number;
+  priceUsd?: number | string | null;
+}
+
 interface RawMarket {
   liquidityUsd?: number;
-  baseToken: { mint: string; symbol?: string; priceUsd?: number };
-  quoteToken: { mint: string; symbol?: string; priceUsd?: number };
+  baseToken: RawSide;
+  quoteToken: RawSide;
 }
+
+const positive = (v: unknown): number | null => {
+  const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
 
 /** Tokens tradeable against COOK, deepest first (from the 70 KB markets feed, not the 4 MB registry). */
 export async function loadMarketTokens(): Promise<MarketToken[]> {
   // The feed puts the list under `markets` (older deploys used `data`).
-  const json = await getJson<{ markets?: RawMarket[]; data?: RawMarket[] }>(`${COOKIESCAN_API}/api/markets`);
-  const byMint = new Map<string, MarketToken>();
+  const json = await getJson<{ markets?: RawMarket[]; data?: RawMarket[]; cookUsd?: number }>(`${COOKIESCAN_API}/api/markets`);
+  const byMint = new Map<string, MarketToken & { priceDepth: number }>();
   for (const m of json.markets ?? json.data ?? []) {
-    const sides = [m.baseToken, m.quoteToken];
-    if (!sides.some((s) => s.mint === COOK_MINT)) continue;
-    const other = sides.find((s) => s.mint !== COOK_MINT);
-    if (!other) continue;
-    const t = byMint.get(other.mint) ?? { mint: other.mint, symbol: other.symbol ?? "?", priceUsd: null, liquidityUsd: 0, pools: 0 };
-    t.liquidityUsd += m.liquidityUsd ?? 0;
+    const cook = [m.baseToken, m.quoteToken].find((s) => s.mint === COOK_MINT);
+    const other = [m.baseToken, m.quoteToken].find((s) => s.mint !== COOK_MINT);
+    if (!cook || !other) continue;
+    const liquidity = m.liquidityUsd ?? 0;
+    const t = byMint.get(other.mint) ?? { mint: other.mint, symbol: other.symbol ?? "?", priceUsd: null, liquidityUsd: 0, pools: 0, priceDepth: -1 };
+    t.liquidityUsd += liquidity;
     t.pools += 1;
-    if (other.priceUsd != null && Number.isFinite(other.priceUsd)) t.priceUsd = other.priceUsd;
+    // Many pools carry no USD price; derive it from the pool's reserves and COOK's price instead.
+    const cookPrice = positive(cook.priceUsd) ?? positive(json.cookUsd);
+    const reservePrice = cook.amount && other.amount && cookPrice ? (cook.amount / other.amount) * cookPrice : null;
+    const price = positive(other.priceUsd) ?? positive(reservePrice);
+    // Prefer the price from the deepest pool.
+    if (price != null && liquidity > t.priceDepth) {
+      t.priceUsd = price;
+      t.priceDepth = liquidity;
+    }
     byMint.set(other.mint, t);
   }
-  return [...byMint.values()].sort((a, b) => b.liquidityUsd - a.liquidityUsd);
+  return [...byMint.values()]
+    .map(({ priceDepth: _depth, ...t }) => t)
+    .sort((a, b) => b.liquidityUsd - a.liquidityUsd);
 }
 
 export async function cookPriceUsd(): Promise<number | null> {
