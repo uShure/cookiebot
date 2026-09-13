@@ -49,6 +49,10 @@ const cards: [string, ui.Card][] = [
   ["settings empty", ui.settingsCard(null, [], [])],
   ["tip amount", ui.tipAmountPicker("cookie.cook")],
   ["tip pending", ui.tipCard(tip("pending"), 0.0000703)],
+  // Sub-cent values render as "<$0.01", the case that once broke Telegram's HTML parser.
+  ["tip pending tiny", ui.tipCard({ ...tip("pending"), amount: 50 }, 0.0000703)],
+  ["send tiny", ui.sendCard(ADDR, "cookie.cook", 10, 0.0000703)],
+  ["portfolio tiny", ui.portfolioCard(ADDR, null, { cook: 3, cookUsd: 0.0002, totalUsd: 0.0002, tokens: [{ mint: MINT, symbol: "DUST", amount: 1, usd: 0.000001 }] }, true)],
   ["tip paid", ui.tipCard(tip("paid"), 0.0000703)],
   ["tip expired", ui.tipCard(tip("expired"), null)],
   ["tip cancelled", ui.tipCard(tip("cancelled"), null)],

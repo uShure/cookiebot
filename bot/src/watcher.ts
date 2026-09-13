@@ -159,8 +159,28 @@ function every(ms: number, name: string, job: () => Promise<void>): void {
   }, ms);
 }
 
+// The public RPC's WebSocket can drop a logs subscription without any error, so polling backs it up.
+// Both paths feed onWalletLogs, whose signature dedupe keeps a transaction from being posted twice.
+const lastSignature = new Map<string, string>();
+
+async function pollWatched(api: Api): Promise<void> {
+  for (const address of store.watchedAddresses()) {
+    const until = lastSignature.get(address);
+    const sigs = await connection
+      .getSignaturesForAddress(new PublicKey(address), until ? { until, limit: 20 } : { limit: 1 })
+      .catch(() => null);
+    if (!sigs?.length) continue;
+    lastSignature.set(address, sigs[0].signature);
+    // The first pass only records a starting point, so a restart doesn't replay old transfers.
+    if (!until) continue;
+    for (const s of [...sigs].reverse()) await onWalletLogs(api, address, s.signature);
+  }
+}
+
 export async function startWatchers(api: Api): Promise<void> {
   await syncWalletSubscriptions(api);
+  await pollWatched(api).catch((e) => console.error("[poll]", e));
+  every(20_000, "poll", () => pollWatched(api));
   every(config.priceCheckSeconds * 1000, "price", () => checkPriceAlerts(api));
   every(8_000, "tips", () => checkTips(api));
 }

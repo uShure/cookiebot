@@ -60,10 +60,11 @@ export function utcTime(d = new Date()): string {
   return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} UTC`;
 }
 
+// HTML-safe: every consumer is a Telegram HTML message, where a bare "<" breaks parsing.
 export function fmtUsd(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
   if (Math.abs(n) >= 0.01) return `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
-  return n === 0 ? "$0" : "<$0.01";
+  return n === 0 ? "$0" : "&lt;$0.01";
 }
 
 export function fmtChange(pct: number | null | undefined): string {
