@@ -353,6 +353,14 @@ function send(ev: SubmitEvent) {
   if (!(amount > 0)) return setStatus("Enter an amount above 0.", "err");
   void run("Transfer", async () => {
     const to = await resolveRecipient(ui.sendTo.value);
+    // A tip link can be reopened or reloaded; never pay the same tip twice.
+    const memoToSend = ui.sendMemo.value.trim();
+    if (memoToSend.startsWith("cookiebot:tip:")) {
+      const recent = await connection.getSignaturesForAddress(new PublicKey(to.address), { limit: 50 });
+      if (recent.some((s) => !s.err && s.memo?.includes(memoToSend))) {
+        throw new Error("This tip is already paid, so nothing was sent.");
+      }
+    }
     const lamports = toRaw(amount, COOK_DECIMALS);
     const balance = BigInt(await connection.getBalance(owner!));
     if (lamports + 10_000n > balance) throw new Error(`Not enough COOK: the jar holds ${fmtAmount(Number(balance) / 1e9)}.`);
@@ -366,6 +374,13 @@ function send(ev: SubmitEvent) {
     const sig = await signSendConfirm(connection, tx, blockhash, lastValidBlockHeight, setStage);
     const label = to.name ?? short(to.address);
     const tip = memo.startsWith("cookiebot:tip:");
+    if (tip) {
+      // Drop the tip from the URL and the form so a reload can't prefill it again.
+      history.replaceState(null, "", location.pathname + location.hash);
+      ui.sendMemo.readOnly = false;
+      ui.sendMemo.value = "";
+      ui.tipNote.hidden = true;
+    }
     return {
       sig,
       title: `${tip ? "Tipped" : "Sent"} ${fmtAmount(amount)} COOK → ${label}`,
