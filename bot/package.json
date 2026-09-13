@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "smoke": "tsx scripts/smoke.ts",
     "profile": "tsx scripts/profile.ts",
-    "cards": "tsx scripts/cards-check.ts"
+    "cards": "tsx scripts/cards-check.ts",
+    "showcase": "tsx scripts/showcase.ts"
   },
   "keywords": [],
   "author": "",
