@@ -5,7 +5,7 @@ A bot watches wallets and prices in real time and lets people tip each other in 
 while a companion web app handles everything that needs a signature in the [Nightly](https://nightly.app) wallet.
 
 - **Web app:** https://ushure.github.io/cookiebot/
-- **Telegram bot:** [@pechenietest_bot](https://t.me/pechenietest_bot)
+- **Telegram bot:** [@cookiechain_bot](https://t.me/cookiechain_bot)
 - Built for the Superteam Earn bounty [Create an App on Cookie Chain](https://superteam.fun/earn/listing/create-an-app-on-cookie-chain-app/)
 
 ## What it does

@@ -57,7 +57,7 @@ const cards: [string, ui.Card][] = [
   ["tip expired", ui.tipCard(tip("expired"), null)],
   ["tip cancelled", ui.tipCard(tip("cancelled"), null)],
   ["tip usage", ui.tipUsage()],
-  ["tip needs link", ui.tipNeedsLink("@bob", "pechenietest_bot")],
+  ["tip needs link", ui.tipNeedsLink("@bob", "cookiechain_bot")],
   ["quick actions", ui.quickActions(ADDR, "cookie.cook")],
   ["stopped", ui.stoppedCard("Treasury", ADDR)],
   ["send", ui.sendCard(ADDR, "cookie.cook", 250, 0.0000703)],

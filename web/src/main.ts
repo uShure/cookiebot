@@ -33,7 +33,7 @@ const ui = {
   activity: $("activity"), shelfList: $("shelfList"), toast: $("toast"),
 };
 
-const BOT_USERNAME = (import.meta.env.VITE_BOT_USERNAME as string | undefined) ?? "pechenietest_bot";
+const BOT_USERNAME = (import.meta.env.VITE_BOT_USERNAME as string | undefined) ?? "cookiechain_bot";
 const NETWORK_FEE = 0.000005;
 
 let owner: PublicKey | null = null;

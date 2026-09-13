@@ -31,7 +31,7 @@ jobs:
       - run: npm ci --no-audit --no-fund --registry=https://registry.npmjs.org
       - run: npm run build
         env:
-          VITE_BOT_USERNAME: pechenietest_bot
+          VITE_BOT_USERNAME: cookiechain_bot
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
