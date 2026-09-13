@@ -52,13 +52,26 @@ export const onCookieChain = () => readGenesis() === GENESIS_HASH;
  */
 export async function ensureCookieNetwork(): Promise<void> {
   if (!provider) throw new Error("Connect Nightly first.");
-  const current = readGenesis();
-  if (current === undefined || current === GENESIS_HASH) return;
-  if (!provider.changeNetwork) throw new Error(NETWORK_HELP);
-  await provider.changeNetwork({ genesisHash: GENESIS_HASH, url: RPC_URL }).catch(() => undefined);
-  // The switch is confirmed in a Nightly popup; give the user time to approve it.
-  for (let i = 0; i < 40 && readGenesis() !== GENESIS_HASH; i++) await new Promise((r) => setTimeout(r, 500));
-  if (readGenesis() !== GENESIS_HASH) throw new Error(NETWORK_HELP);
+  if (readGenesis() === GENESIS_HASH || !provider.changeNetwork) return;
+
+  // Nightly can throw synchronously (e.g. "Not connected" after it dropped the site), so wrap the call.
+  const request = async () => provider!.changeNetwork!({ genesisHash: GENESIS_HASH, url: RPC_URL });
+  try {
+    await request();
+  } catch (e) {
+    if (!/not connected/i.test(String((e as Error)?.message ?? e))) throw new Error(NETWORK_HELP);
+    await provider.connect();
+    try {
+      await request();
+    } catch {
+      throw new Error(NETWORK_HELP);
+    }
+  }
+  // The popup resolves the request; the reported network can lag a moment behind it.
+  for (let i = 0; i < 6 && readGenesis() !== GENESIS_HASH; i++) await new Promise((r) => setTimeout(r, 500));
+  const reported = readGenesis();
+  // Only a network Nightly positively reports as different is an error; an empty value is "unknown".
+  if (reported && reported !== GENESIS_HASH) throw new Error(NETWORK_HELP);
 }
 
 export const NETWORK_HELP =
@@ -95,7 +108,16 @@ export async function signSendConfirm(
   let signature: string;
   let raw: Uint8Array | null = null;
   if (provider.signTransaction) {
-    const signed = await provider.signTransaction(tx);
+    let signed: AnyTx;
+    try {
+      signed = await provider.signTransaction(tx);
+    } catch (e) {
+      // Nightly simulates on its own active network; a Solana balance error means it never switched.
+      if (/insufficient lamports|InstructionError|simulation failed/i.test(String((e as Error)?.message ?? e))) {
+        throw new Error(NETWORK_HELP);
+      }
+      throw e;
+    }
     raw = signed.serialize();
     onStage("sending");
     signature = await connection.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 0 });
